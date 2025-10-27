@@ -1,0 +1,213 @@
+// Working Calculator with Available WebView Functions
+// Uses only the functions that are actually available in the WebView library
+
+print("==================================================")
+print("      🧮 KUYIL CALCULATOR - WORKING VERSION 🧮  ")  
+print("==================================================")
+
+// Initialize WebView system
+webview_init()
+print("WebView initialized successfully")
+
+// Create default settings for the WebView
+let settings = webview_create_default_settings()
+
+// Create the calculator HTML using multiline string
+let calculator_html = `<!DOCTYPE html>
+<html>
+<head>
+    <title>Kuyil Calculator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .calculator {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+            max-width: 350px;
+            width: 100%;
+        }
+        .title {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+        .display {
+            width: 100%;
+            height: 60px;
+            font-size: 28px;
+            text-align: right;
+            background: #000;
+            color: #00ff00;
+            border: none;
+            border-radius: 10px;
+            padding: 0 20px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        .btn {
+            height: 60px;
+            border: none;
+            border-radius: 12px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .number {
+            background: linear-gradient(135deg, #4facfe, #00f2fe);
+            color: white;
+        }
+        .operator {
+            background: linear-gradient(135deg, #fa709a, #fee140);
+            color: white;
+        }
+        .clear {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+        .equals {
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+            color: white;
+            grid-column: span 2;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <h1 class="title">🧮 Kuyil Calculator</h1>
+        <input type="text" id="display" class="display" value="0" readonly>
+        <div class="buttons">
+            <button class="btn clear" onclick="clearAll()">AC</button>
+            <button class="btn clear" onclick="clearEntry()">CE</button>
+            <button class="btn operator" onclick="operate('/')">/</button>
+            <button class="btn operator" onclick="operate('*')">×</button>
+
+            <button class="btn number" onclick="input('7')">7</button>
+            <button class="btn number" onclick="input('8')">8</button>
+            <button class="btn number" onclick="input('9')">9</button>
+            <button class="btn operator" onclick="operate('-')">-</button>
+
+            <button class="btn number" onclick="input('4')">4</button>
+            <button class="btn number" onclick="input('5')">5</button>
+            <button class="btn number" onclick="input('6')">6</button>
+            <button class="btn operator" onclick="operate('+')">+</button>
+
+            <button class="btn number" onclick="input('1')">1</button>
+            <button class="btn number" onclick="input('2')">2</button>
+            <button class="btn number" onclick="input('3')">3</button>
+            <button class="btn equals" onclick="calculate()" rowspan="2">=</button>
+
+            <button class="btn number" onclick="input('0')" colspan="2" style="grid-column: span 2;">0</button>
+            <button class="btn number" onclick="input('.')">.</button>
+        </div>
+    </div>
+
+    <script>
+        let currentInput = '0';
+        let operator = null;
+        let previousInput = null;
+        let shouldReset = false;
+        const display = document.getElementById('display');
+
+        function input(value) {
+            if (shouldReset) {
+                currentInput = '';
+                shouldReset = false;
+            }
+            
+            if (currentInput === '0' && value !== '.') {
+                currentInput = value;
+            } else {
+                currentInput += value;
+            }
+            display.value = currentInput;
+        }
+
+        function operate(op) {
+            if (operator && !shouldReset) {
+                calculate();
+            }
+            
+            operator = op;
+            previousInput = currentInput;
+            shouldReset = true;
+        }
+
+        function calculate() {
+            if (!operator || shouldReset) return;
+            let prev = parseFloat(previousInput);
+            let curr = parseFloat(currentInput);
+            let result;
+            
+            if (operator === '+') result = prev + curr;
+            else if (operator === '-') result = prev - curr;
+            else if (operator === '*') result = prev * curr;
+            else if (operator === '/') result = curr !== 0 ? prev / curr : 'Error';
+            
+            currentInput = result.toString();
+            display.value = currentInput;
+            operator = null;
+            previousInput = null;
+            shouldReset = true;
+        }
+
+        function clearAll() {
+            currentInput = '0';
+            operator = null;
+            previousInput = null;
+            shouldReset = false;
+            display.value = currentInput;
+        }
+
+        function clearEntry() {
+            currentInput = '0';
+            display.value = currentInput;
+        }
+    </script>
+</body>
+</html>`
+
+// Create a WebView window with proper settings
+let webview = webview_create("Kuyil Calculator", settings)
+
+// Load the HTML into the window  
+webview_load_html(webview, calculator_html)
+
+print("🧮 CALCULATOR FEATURES:")
+print("   • Beautiful gradient design")  
+print("   • Full arithmetic operations")
+print("   • Clean multiline HTML with backticks")
+print("   • Hover effects and animations")
+
+print("🚀 LAUNCHING CALCULATOR...")
+print("Calculator is now running! Close the window to exit.")
+print("==================================================")
+
+// Show and run the WebView window
+webview_show(webview)
+webview_run(webview)
+
+// Cleanup
+webview_destroy(webview)
+webview_cleanup()
+print("✅ Calculator completed - Thank you for using Kuyil!")

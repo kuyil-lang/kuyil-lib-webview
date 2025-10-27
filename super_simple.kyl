@@ -1,0 +1,21 @@
+// Simplest Possible Calculator
+
+print("Simple Calculator Starting...")
+
+webview_init()
+print("WebView initialized")
+
+// Create default settings
+let settings = webview_create_default_settings()
+
+// Create window with title and settings
+let window = webview_create("Calculator", settings)
+
+let simple_html = "<html><body><h1>Calculator</h1><p>2 + 2 = 4</p><button>Test Button</button></body></html>"
+
+webview_load_html(window, simple_html)
+print("Calculator loaded - close window to exit")
+webview_run(window)
+webview_destroy(window)
+webview_cleanup()
+print("Calculator finished")
