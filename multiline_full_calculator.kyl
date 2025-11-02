@@ -9,9 +9,6 @@ print("==================================================")
 webview_init()
 print("WebView initialized successfully")
 
-// Create default settings for the WebView
-let settings = webview_create_default_settings()
-
 // Create the calculator HTML using multiline string
 let calculator_html = `<!DOCTYPE html>
 <html>
@@ -187,7 +184,8 @@ let calculator_html = `<!DOCTYPE html>
 </body>
 </html>`
 
-// Create a WebView window with proper settings
+// Create a WebView window using webview_create (C API - returns pointer)
+let settings = webview_create_default_settings()
 let webview = webview_create("Kuyil Calculator", settings)
 
 // Load the HTML into the window  
@@ -203,7 +201,7 @@ print("🚀 LAUNCHING CALCULATOR...")
 print("Calculator is now running! Close the window to exit.")
 print("==================================================")
 
-// Show and run the WebView window
+// Run the WebView window (this blocks until closed)
 webview_show(webview)
 webview_run(webview)
 
