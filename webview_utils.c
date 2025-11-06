@@ -214,7 +214,7 @@ bool webview_eval_js(WebView* webview, const char* js, WebViewContext context) {
 void webview_destroy(WebView* webview) {
     if (!webview) return;
     
-    if (webview->window) {
+    if (webview->window && GTK_IS_WIDGET(webview->window)) {
         gtk_widget_destroy(webview->window);
     }
     

@@ -1,12 +1,14 @@
 // Working Calculator with Available WebView Functions
 // Uses only the functions that are actually available in the WebView library
 
+import("../../interfaces/interface_webview.kyl")
+
 print("==================================================")
 print("      🧮 KUYIL CALCULATOR - WORKING VERSION 🧮  ")  
 print("==================================================")
 
 // Initialize WebView system
-webview_init()
+init()
 print("WebView initialized successfully")
 
 // Create the calculator HTML using multiline string
@@ -184,12 +186,12 @@ let calculator_html = `<!DOCTYPE html>
 </body>
 </html>`
 
-// Create a WebView window using webview_create (C API - returns pointer)
-let settings = webview_create_default_settings()
-let webview = webview_create("Kuyil Calculator", settings)
+// Create a WebView window
+let settings = createDefaultSettings()
+let webview = create("Kuyil Calculator", settings)
 
 // Load the HTML into the window  
-webview_load_html(webview, calculator_html)
+loadHtml(webview, calculator_html)
 
 print("🧮 CALCULATOR FEATURES:")
 print("   • Beautiful gradient design")  
@@ -202,10 +204,10 @@ print("Calculator is now running! Close the window to exit.")
 print("==================================================")
 
 // Run the WebView window (this blocks until closed)
-webview_show(webview)
-webview_run(webview)
+show(webview)
+run(webview)
 
 // Cleanup
-webview_destroy(webview)
-webview_cleanup()
+destroy(webview)
+cleanup()
 print("✅ Calculator completed - Thank you for using Kuyil!")
