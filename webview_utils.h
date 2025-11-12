@@ -7,6 +7,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+
+/**
+ * Register a callback to process VM task queue during GTK main loop
+ * @param processor Function pointer that processes pending tasks
+ */
+void webview_set_task_processor(int (*processor)(int max_tasks));
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -727,6 +734,24 @@ WebView** webview_get_children(WebView* webview, int* count);
  * @return Number of children closed
  */
 int webview_close_all_children(WebView* webview);
+
+// ============================================================================
+// Developer Tools
+// ============================================================================
+
+/**
+ * Enable or disable WebKit developer tools (inspector)
+ * @param webview WebView handle
+ * @param enable true to enable, false to disable
+ * @return true on success, false on error
+ */
+bool webview_enable_dev_tools(WebView* webview, bool enable);
+
+/**
+ * Register a callback to process VM task queue during GTK main loop
+ * @param processor Function pointer that processes pending tasks
+ */
+void webview_set_task_processor(int (*processor)(int max_tasks));
 
 #ifdef __cplusplus
 }

@@ -14,6 +14,13 @@
     #define WEBVIEW_STUB 1
 #endif
 
+// External VM functions for avatar completion processing
+extern int vm_process_avatar_completions(int max_avatars);
+extern size_t vm_avatar_pending_count(void);
+
+// External async request queue processing
+extern int vm_process_async_requests(int max_requests);
+
 // Simplified WebView structure
 struct WebView {
 #ifdef WEBVIEW_GTK
@@ -37,6 +44,9 @@ struct WebView {
 static bool g_webview_initialized = false;
 static char g_webview_error[512] = {0};
 
+// Task queue processor callback (called from external VM)
+static int (*g_task_processor)(int max_tasks) = NULL;
+
 // Helper functions
 static void set_error(const char* message) {
     snprintf(g_webview_error, sizeof(g_webview_error), "%s", message);
@@ -45,12 +55,25 @@ static void set_error(const char* message) {
 #ifdef WEBVIEW_GTK
 // GTK/WebKit implementation
 
+// GTK timeout callback to process task queue
+static gboolean on_process_tasks(gpointer data) {
+    (void)data;  // Unused
+    if (g_task_processor) {
+        g_task_processor(100);  // Process up to 100 tasks per timer tick
+    }
+    return TRUE;  // Continue calling this timeout
+}
+
 static gboolean on_window_delete(GtkWidget* widget, GdkEvent* event, gpointer data) {
     (void)widget; (void)event;  // Suppress unused parameter warnings
     WebView* webview = (WebView*)data;
     if (webview) {
         webview->exit_code = 0;
-        gtk_main_quit();
+        webview->is_valid = false;  // Mark as invalid so step() will return false
+        // Only quit main loop if it's actually running
+        if (gtk_main_level() > 0) {
+            gtk_main_quit();
+        }
     }
     return FALSE;
 }
@@ -127,6 +150,12 @@ WebView* webview_create(const char* title, WebViewSettings* settings) {
     // Add WebView to window
     gtk_container_add(GTK_CONTAINER(webview->window), webview->webview);
     
+    // Always enable developer tools for debugging
+    WebKitSettings* webkit_settings = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(webview->webview));
+    if (webkit_settings) {
+        webkit_settings_set_enable_developer_extras(webkit_settings, TRUE);
+    }
+    
     // Set up callbacks
     g_signal_connect(webview->window, "delete-event", G_CALLBACK(on_window_delete), webview);
     g_signal_connect(webview->webview, "load-changed", G_CALLBACK(on_load_changed), webview);
@@ -188,6 +217,20 @@ bool webview_hide(WebView* webview) {
     return true;
 }
 
+// Idle callback to process avatar completions and async requests
+static gboolean on_process_avatars(gpointer user_data) {
+    (void)user_data;  // Unused
+    
+    // Process up to 10 avatar completions per idle callback
+    int avatars_processed = vm_process_avatar_completions(10);
+    
+    // Process up to 10 async requests per idle callback
+    int requests_processed = vm_process_async_requests(10);
+    
+    // Continue calling this callback (return TRUE to keep it active)
+    return TRUE;
+}
+
 int webview_run(WebView* webview) {
     if (!webview || !webview->is_valid) {
         set_error("Invalid webview");
@@ -195,9 +238,38 @@ int webview_run(WebView* webview) {
     }
     
     gtk_widget_show_all(webview->window);
+    
+    // Add idle callback to process avatar completions
+    // This runs whenever GTK is idle, ensuring avatars are processed
+    g_idle_add(on_process_avatars, NULL);
+    
     gtk_main();
     
     return webview->exit_code;
+}
+
+bool webview_step(WebView* webview) {
+    if (!webview || !webview->is_valid) {
+        return false;
+    }
+    
+    if (!webview->window) {
+        webview->is_valid = false;
+        return false;
+    }
+    
+    // Ensure window is visible (safe to call multiple times)
+    if (!gtk_widget_get_visible(webview->window)) {
+        gtk_widget_show_all(webview->window);
+    }
+    
+    // Process pending GTK events (non-blocking)
+    while (gtk_events_pending()) {
+        gtk_main_iteration_do(FALSE);
+    }
+    
+    // Return false if window was closed/destroyed
+    return webview->is_valid;
 }
 
 bool webview_eval_js(WebView* webview, const char* js, WebViewContext context) {
@@ -349,10 +421,99 @@ WebView* webview_create_child(WebView* parent, const char* title, WebViewSetting
     return NULL;
 }
 
-bool webview_bind_function(WebView* webview, const char* name, WebViewJSCallback callback, void* user_data) {
-    (void)webview; (void)name; (void)callback; (void)user_data;  // Suppress unused parameter warnings
-    set_error("Function binding not implemented yet");
+
+#ifdef WEBVIEW_GTK
+
+// Struct to hold bridge callback info
+typedef struct {
+    WebView* wv;
+    WebViewJSCallback cb;
+    void* user;
+    char* name;
+} BridgeData;
+
+// Global JS → C message handler
+static void on_js_message(WebKitUserContentManager* manager,
+                          WebKitJavascriptResult* js_result,
+                          gpointer user_data) {
+    (void)manager;
+    BridgeData* b = (BridgeData*)user_data;
+    if (!b || !b->cb)
+        return;
+
+    JSCValue* value = webkit_javascript_result_get_js_value(js_result);
+    char* msg = NULL;
+
+    if (jsc_value_is_string(value))
+        msg = jsc_value_to_string(value);
+    else
+        msg = g_strdup("{}");
+
+    b->cb(b->wv, b->name, msg, b->user);
+    g_free(msg);
+}
+
+#endif // WEBVIEW_GTK
+
+bool webview_bind_function(WebView* webview, const char* name,
+                           WebViewJSCallback callback, void* user_data) {
+#ifdef WEBVIEW_GTK
+    if (!webview || !webview->is_valid || !name || !callback) {
+        set_error("Invalid parameters for function binding");
+        return false;
+    }
+
+    WebKitWebView* wv = WEBKIT_WEB_VIEW(webview->webview);
+    WebKitUserContentManager* manager =
+        webkit_web_view_get_user_content_manager(wv);
+
+    // Structure to carry callback context
+    typedef struct {
+        WebView* wv;
+        WebViewJSCallback cb;
+        void* user;
+        char* name;
+    } BridgeData;
+
+    BridgeData* bridge = g_new0(BridgeData, 1);
+    bridge->wv = webview;
+    bridge->cb = callback;
+    bridge->user = user_data;
+    bridge->name = g_strdup(name);
+
+    // Build signal name like "script-message-received::foo"
+    char signal_name[256];
+    snprintf(signal_name, sizeof(signal_name),
+             "script-message-received::%s", name);
+
+    // Connect the message signal
+    g_signal_connect(manager, signal_name,
+                     G_CALLBACK(on_js_message), bridge);
+
+    // Register this handler name
+    if (!webkit_user_content_manager_register_script_message_handler(manager, name)) {
+        set_error("Failed to register message handler");
+        g_free(bridge->name);
+        g_free(bridge);
+        return false;
+    }
+
+    // Inject JS shim
+    char inject[512];
+    snprintf(inject, sizeof(inject),
+        "window.%s = function(data) { "
+        "  window.webkit.messageHandlers['%s'].postMessage(JSON.stringify(data)); "
+        "};",
+        name, name);
+
+    webkit_web_view_run_javascript(wv, inject, NULL, NULL, NULL);
+
+    printf("[BIND] ✅ JS bridge registered for '%s'\n", name);
+    return true;
+#else
+    set_error("WebView binding not supported on this platform");
     return false;
+#endif
 }
 
 char* webview_show_open_dialog(WebView* webview, const char* title, const char* default_path, 
@@ -411,9 +572,49 @@ char* webview_get_user_agent(WebView* webview) {
 }
 
 bool webview_enable_dev_tools(WebView* webview, bool enable) {
-    (void)webview; (void)enable;  // Suppress unused parameter warnings
-    set_error("Developer tools not implemented yet");
+    if (!webview || !webview->is_valid) {
+        set_error("Invalid webview");
+        return false;
+    }
+    
+#ifdef WEBVIEW_GTK
+    if (!webview->webview) {
+        set_error("WebView not initialized");
+        return false;
+    }
+    
+    // webkit_web_view_get_settings MUST be called from the GTK main thread.
+    // Use g_idle_add to schedule the call safely.
+    
+    typedef struct {
+        GtkWidget* webview_widget;
+        gboolean enable;
+    } DevToolsData;
+    
+    DevToolsData* data = g_new0(DevToolsData, 1);
+    data->webview_widget = webview->webview;
+    data->enable = enable ? TRUE : FALSE;
+    
+    // Idle callback - runs on GTK main thread
+    gboolean idle_callback(gpointer user_data) {
+        DevToolsData* d = (DevToolsData*)user_data;
+        if (d && d->webview_widget && GTK_IS_WIDGET(d->webview_widget)) {
+            WebKitSettings* settings = webkit_web_view_get_settings(WEBKIT_WEB_VIEW(d->webview_widget));
+            if (settings) {
+                webkit_settings_set_enable_developer_extras(settings, d->enable);
+            }
+        }
+        g_free(d);
+        return G_SOURCE_REMOVE; // one-shot callback
+    }
+    
+    g_idle_add(idle_callback, data);
+    return true;
+#else
+    (void)enable;
+    set_error("Developer tools only supported on GTK platform");
     return false;
+#endif
 }
 
 bool webview_set_zoom_level(WebView* webview, double zoom) {
@@ -492,4 +693,8 @@ char* webview_get_title(WebView* webview) {
     }
 #endif
     return NULL;
+}
+// Register a callback to process VM task queue during GTK main loop
+void webview_set_task_processor(int (*processor)(int max_tasks)) {
+    g_task_processor = processor;
 }
