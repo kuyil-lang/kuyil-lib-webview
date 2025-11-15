@@ -1,5 +1,6 @@
 #define _GNU_SOURCE  // For strdup
 #include "webview_utils.h"
+#include "../../src/ast.h"  // For Value type
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -55,6 +56,92 @@ static void set_error(const char* message) {
 #ifdef WEBVIEW_GTK
 // GTK/WebKit implementation
 
+// Forward declarations for heapfs and file access
+typedef struct {
+    const char* path;
+    const char* content;
+    size_t size;
+    const char* mime_type;
+} HeapFSFile;
+
+extern HeapFSFile* heapfs_get_c_file_info(const char* path);
+extern size_t heapfs_c_get_file_size(HeapFSFile* file);
+extern const char* heapfs_c_get_file_data(HeapFSFile* file);
+extern const char* heapfs_c_get_file_mime(HeapFSFile* file);
+
+// Forward declaration for file I/O
+extern Value file_read_text_value(const char* path);
+
+// URI scheme handler for app-heapfs://
+static void on_uri_scheme_request_heapfs(WebKitURISchemeRequest* request, gpointer user_data) {
+    (void)user_data;
+    
+    const char* uri = webkit_uri_scheme_request_get_uri(request);
+    const char* path = uri + strlen("app-heapfs://");  // Skip scheme prefix
+    
+    // Get file from heapfs
+    HeapFSFile* file_info = heapfs_get_c_file_info(path);
+    if (!file_info) {
+        GError* error = g_error_new(G_IO_ERROR, G_IO_ERROR_NOT_FOUND, "File not found in heapfs: %s", path);
+        webkit_uri_scheme_request_finish_error(request, error);
+        g_error_free(error);
+        return;
+    }
+    
+    // Get file data and metadata
+    const char* data = heapfs_c_get_file_data(file_info);
+    size_t size = heapfs_c_get_file_size(file_info);
+    const char* mime_type = heapfs_c_get_file_mime(file_info);
+    
+    // Create GInputStream from the data
+    GInputStream* stream = g_memory_input_stream_new_from_data(
+        g_memdup(data, size), size, g_free);
+    
+    // Finish the request with the stream
+    webkit_uri_scheme_request_finish(request, stream, size, mime_type);
+    g_object_unref(stream);
+}
+
+// URI scheme handler for app-localfs://
+static void on_uri_scheme_request_localfs(WebKitURISchemeRequest* request, gpointer user_data) {
+    (void)user_data;
+    
+    const char* uri = webkit_uri_scheme_request_get_uri(request);
+    const char* path = uri + strlen("app-localfs://");  // Skip scheme prefix
+    
+    // Read file from local filesystem using Kuyil's file I/O
+    Value result = file_read_text_value(path);
+    if (result.type != 2) {  // VALUE_STRING = 2
+        GError* error = g_error_new(G_IO_ERROR, G_IO_ERROR_NOT_FOUND, "File not found on disk: %s", path);
+        webkit_uri_scheme_request_finish_error(request, error);
+        g_error_free(error);
+        return;
+    }
+    
+    const char* content = result.as.string;
+    
+    // Determine MIME type from file extension
+    const char* mime_type = "application/octet-stream";
+    if (strstr(path, ".html") || strstr(path, ".htm")) mime_type = "text/html";
+    else if (strstr(path, ".css")) mime_type = "text/css";
+    else if (strstr(path, ".js")) mime_type = "application/javascript";
+    else if (strstr(path, ".json")) mime_type = "application/json";
+    else if (strstr(path, ".png")) mime_type = "image/png";
+    else if (strstr(path, ".jpg") || strstr(path, ".jpeg")) mime_type = "image/jpeg";
+    else if (strstr(path, ".svg")) mime_type = "image/svg+xml";
+    
+    size_t size = strlen(content);
+    
+    // Create GInputStream from the content (duplicate for ownership)
+    char* content_copy = strdup(content);
+    GInputStream* stream = g_memory_input_stream_new_from_data(
+        content_copy, size, g_free);  // g_free will be called when stream is done
+    
+    // Finish the request with the stream
+    webkit_uri_scheme_request_finish(request, stream, size, mime_type);
+    g_object_unref(stream);
+}
+
 // GTK timeout callback to process task queue
 static gboolean on_process_tasks(gpointer data) {
     (void)data;  // Unused
@@ -96,6 +183,17 @@ bool webview_init(void) {
         set_error("Failed to initialize GTK");
         return false;
     }
+    
+    // Register custom URI schemes
+    WebKitWebContext* context = webkit_web_context_get_default();
+    
+    // Register app-heapfs:// for embedded resources
+    webkit_web_context_register_uri_scheme(context, "app-heapfs",
+        on_uri_scheme_request_heapfs, NULL, NULL);
+    
+    // Register app-localfs:// for local filesystem access
+    webkit_web_context_register_uri_scheme(context, "app-localfs",
+        on_uri_scheme_request_localfs, NULL, NULL);
     
     g_webview_initialized = true;
     return true;
@@ -269,6 +367,13 @@ bool webview_step(WebView* webview) {
     }
     
     // Return false if window was closed/destroyed
+    return webview->is_valid;
+}
+
+bool webview_is_valid(WebView* webview) {
+    if (!webview) {
+        return false;
+    }
     return webview->is_valid;
 }
 

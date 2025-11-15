@@ -22,6 +22,7 @@ const char* kyl_interface_signature_text =
     "webview loadUrl(window: int32, url: string) -> bool\n"
     "webview run(window: int32) -> int32\n"
     "webview step(window: int32) -> bool\n"
+    "webview is_open(window: int32) -> bool\n"
     "webview eval(window: int32, script: string) -> bool\n"
     "webview setTitle(window: int32, title: string) -> bool\n"
     "webview setSize(window: int32, width: int32, height: int32) -> bool\n"
@@ -55,6 +56,7 @@ static WebView* get_webview(int handle) {
 
 // Native callback that bridges to Kuyil
 static void native_callback_bridge(WebView* webview, const char* name, const char* args, void* user_data) {
+    fprintf(stderr, "[BRIDGE CALLED] name=%s, args=%s\n", name, args);
     BoundFunction* bound = (BoundFunction*)user_data;
     if (!bound || !bound->kuyil_callback) {
         fprintf(stderr, "[ERROR] No Kuyil callback stored for %s\n", name);
@@ -70,21 +72,72 @@ static void native_callback_bridge(WebView* webview, const char* name, const cha
     
     // TODO: Parse args JSON and convert to Kuyil Values
     // For now, just call with the raw string as a single argument
+    // WebView passes args as JSON, so a string "hello" comes as "\"hello\""
+    // We need to strip the outer quotes for simple strings
+    const char* actual_string = args;
+    char* temp_buffer = NULL;
+    
+    if (args && strlen(args) >= 2 && args[0] == '"' && args[strlen(args)-1] == '"') {
+        // Strip outer quotes and unescape
+        size_t len = strlen(args) - 2;
+        temp_buffer = malloc(len + 1);
+        size_t j = 0;
+        for (size_t i = 1; i < strlen(args) - 1; i++) {
+            if (args[i] == '\\' && i + 1 < strlen(args) - 1) {
+                // Unescape common sequences
+                if (args[i+1] == '"') {
+                    temp_buffer[j++] = '"';
+                    i++;
+                } else if (args[i+1] == '\\') {
+                    temp_buffer[j++] = '\\';
+                    i++;
+                } else if (args[i+1] == 'n') {
+                    temp_buffer[j++] = '\n';
+                    i++;
+                } else if (args[i+1] == 't') {
+                    temp_buffer[j++] = '\t';
+                    i++;
+                } else {
+                    temp_buffer[j++] = args[i];
+                }
+            } else {
+                temp_buffer[j++] = args[i];
+            }
+        }
+        temp_buffer[j] = '\0';
+        actual_string = temp_buffer;
+    }
+    
     Value kuyil_args[1];
     kuyil_args[0].type = VALUE_STRING;
-    kuyil_args[0].as.string = (char*)args;
+    kuyil_args[0].as.string = (char*)actual_string;
     
     // Call the Kuyil function
     Value result;
     bool success = call_kuyil_function(*callback_value, 1, kuyil_args, &result);
     
+    // Clean up temp buffer if we allocated one
+    if (temp_buffer) {
+        free(temp_buffer);
+    }
+    
     if (!success) {
         Function* func = callback_value->as.function.function;
         const char* func_name = (func && func->name) ? func->name : "<anonymous>";
         fprintf(stderr, "[ERROR] Failed to call Kuyil function %s\n", func_name);
+        return;
     }
     
-    (void)webview;  // Unused for now
+    // Store the return value in a global JS variable that can be retrieved
+    if (result.type == VALUE_STRING && result.as.string) {
+        fprintf(stderr, "[BRIDGE] Function %s returned string, setting __kuyilReturn\n", name);
+        // Escape the string for JavaScript
+        // For now, store it directly - JS will need to handle escaping
+        char js_cmd[32768];  // Large buffer for response
+        snprintf(js_cmd, sizeof(js_cmd), "window.__kuyilReturn = %s;", result.as.string);
+        webview_eval_js(webview, js_cmd, WEBVIEW_CONTEXT_MAIN);
+    }
+    
     (void)name;     // Unused for now
 }
 
@@ -306,6 +359,27 @@ Value kyl_webview_step(int arg_count, Value* args) {
     return result;
 }
 
+Value kyl_webview_is_open(int arg_count, Value* args) {
+    if (arg_count < 1 || args[0].type != VALUE_NUMBER) {
+        Value result = {VALUE_BOOL};
+        result.as.boolean = false;
+        return result;
+    }
+    
+    WebView* webview = get_webview((int)args[0].as.number);
+    if (!webview) {
+        Value result = {VALUE_BOOL};
+        result.as.boolean = false;
+        return result;
+    }
+    
+    // Check if the webview is still valid/open using the utility function
+    Value result;
+    result.type = VALUE_BOOL;
+    result.as.boolean = webview_is_valid(webview);
+    return result;
+}
+
 Value kyl_webview_eval(int arg_count, Value* args) {
     if (arg_count < 2 || args[0].type != VALUE_NUMBER || args[1].type != VALUE_STRING) {
         Value result = {VALUE_NIL};
@@ -396,14 +470,40 @@ Value kyl_webview_destroy(int arg_count, Value* args) {
 // Usage: webview.bind(window, "functionName", kuyilCallbackFunction)
 // In JS: window.functionName('data') will trigger the Kuyil callback
 Value kyl_webview_bind(int arg_count, Value* args) {
-    if (arg_count < 3 || args[0].type != VALUE_NUMBER || args[1].type != VALUE_STRING || args[2].type != VALUE_FUNCTION) {
-        fprintf(stderr, "[ERROR] webview_bind requires 3 args: window (number), func_name (string), callback (function)\n");
+    fprintf(stderr, "[DEBUG] kyl_webview_bind called with %d args\n", arg_count);
+    
+    if (arg_count < 3) {
+        fprintf(stderr, "[ERROR] webview_bind requires 3 args, got %d\n", arg_count);
+        Value result = {VALUE_BOOL};
+        result.as.boolean = false;
+        return result;
+    }
+    
+    fprintf(stderr, "[DEBUG] arg types: [0]=%d [1]=%d [2]=%d\n", args[0].type, args[1].type, args[2].type);
+    
+    if (args[0].type != VALUE_NUMBER) {
+        fprintf(stderr, "[ERROR] webview_bind: arg 0 must be NUMBER (window handle), got type %d\n", args[0].type);
+        Value result = {VALUE_BOOL};
+        result.as.boolean = false;
+        return result;
+    }
+    
+    if (args[1].type != VALUE_STRING) {
+        fprintf(stderr, "[ERROR] webview_bind: arg 1 must be STRING (func_name), got type %d\n", args[1].type);
+        Value result = {VALUE_BOOL};
+        result.as.boolean = false;
+        return result;
+    }
+    
+    if (args[2].type != VALUE_FUNCTION) {
+        fprintf(stderr, "[ERROR] webview_bind: arg 2 must be FUNCTION (callback), got type %d\n", args[2].type);
         Value result = {VALUE_BOOL};
         result.as.boolean = false;
         return result;
     }
     
     int handle = (int)args[0].as.number;
+    fprintf(stderr, "[DEBUG] window handle: %d\n", handle);
     
     WebView* webview = get_webview(handle);
     if (!webview) {
@@ -414,6 +514,8 @@ Value kyl_webview_bind(int arg_count, Value* args) {
     }
     
     const char* func_name = args[1].as.string;
+    fprintf(stderr, "[DEBUG] func_name: %s\n", func_name);
+    
     Value callback = args[2];
     
     // Store bound function info
@@ -438,8 +540,12 @@ Value kyl_webview_bind(int arg_count, Value* args) {
     memcpy(bound->kuyil_callback, &callback, sizeof(Value));
     g_bound_count++;
     
+    fprintf(stderr, "[DEBUG] Calling webview_bind_function for '%s'\n", func_name);
+    
     // Bind the function in the webview
     bool success = webview_bind_function(webview, func_name, native_callback_bridge, bound);
+    
+    fprintf(stderr, "[DEBUG] webview_bind_function returned: %d\n", success);
     
     Value result;
     result.type = VALUE_BOOL;
