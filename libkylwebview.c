@@ -56,7 +56,7 @@ static WebView* get_webview(int handle) {
 
 // Native callback that bridges to Kuyil
 static void native_callback_bridge(WebView* webview, const char* name, const char* args, void* user_data) {
-    fprintf(stderr, "[BRIDGE CALLED] name=%s, args=%s\n", name, args);
+    // fprintf(stderr, "[BRIDGE CALLED] name=%s, args=%s\n", name, args);
     BoundFunction* bound = (BoundFunction*)user_data;
     if (!bound || !bound->kuyil_callback) {
         fprintf(stderr, "[ERROR] No Kuyil callback stored for %s\n", name);
@@ -130,7 +130,7 @@ static void native_callback_bridge(WebView* webview, const char* name, const cha
     
     // Store the return value in a global JS variable that can be retrieved
     if (result.type == VALUE_STRING && result.as.string) {
-        fprintf(stderr, "[BRIDGE] Function %s returned string, setting __kuyilReturn\n", name);
+        // fprintf(stderr, "[BRIDGE] Function %s returned string, setting __kuyilReturn\n", name);
         // Escape the string for JavaScript
         // For now, store it directly - JS will need to handle escaping
         char js_cmd[32768];  // Large buffer for response
