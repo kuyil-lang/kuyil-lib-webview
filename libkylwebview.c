@@ -174,7 +174,9 @@ Value kyl_webview_create_default_settings(int arg_count, Value* args) {
 
 Value kyl_webview_create(int arg_count, Value* args) {
     if (arg_count < 2 || args[0].type != VALUE_STRING || args[1].type != VALUE_NUMBER) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
 
@@ -183,7 +185,9 @@ Value kyl_webview_create(int arg_count, Value* args) {
 
     WebView* webview = webview_create(title, settings);
     if (!webview || g_webview_count >= 10) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
 
@@ -199,12 +203,16 @@ Value kyl_webview_create(int arg_count, Value* args) {
 
 Value kyl_webview_show(int arg_count, Value* args) {
     if (arg_count < 1 || args[0].type != VALUE_NUMBER) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     WebView* webview = get_webview((int)args[0].as.number);
     if (!webview) {
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -217,12 +225,16 @@ Value kyl_webview_show(int arg_count, Value* args) {
 
 Value kyl_webview_hide(int arg_count, Value* args) {
     if (arg_count < 1 || args[0].type != VALUE_NUMBER) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     WebView* webview = get_webview((int)args[0].as.number);
     if (!webview) {
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -246,21 +258,27 @@ Value kyl_webview_cleanup(int arg_count, Value* args) {
 
 Value kyl_webview_create_window(int arg_count, Value* args) {
     if (arg_count < 1 || args[0].type != VALUE_STRING) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
     // Create default settings
     WebViewSettings* settings = webview_create_default_settings();
     if (!settings) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
     WebView* webview = webview_create(args[0].as.string, settings);
     if (!webview || g_webview_count >= 10) {
         webview_destroy_settings(settings);
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
@@ -276,13 +294,17 @@ Value kyl_webview_create_window(int arg_count, Value* args) {
 
 Value kyl_webview_load_html(int arg_count, Value* args) {
     if (arg_count < 2 || args[0].type != VALUE_NUMBER || args[1].type != VALUE_STRING) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
     WebView* webview = get_webview((int)args[0].as.number);
     if (!webview) {
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -297,13 +319,17 @@ Value kyl_webview_load_html(int arg_count, Value* args) {
 
 Value kyl_webview_load_url(int arg_count, Value* args) {
     if (arg_count < 2 || args[0].type != VALUE_NUMBER || args[1].type != VALUE_STRING) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
     WebView* webview = get_webview((int)args[0].as.number);
     if (!webview) {
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -318,13 +344,17 @@ Value kyl_webview_load_url(int arg_count, Value* args) {
 
 Value kyl_webview_run(int arg_count, Value* args) {
     if (arg_count < 1 || args[0].type != VALUE_NUMBER) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
     WebView* webview = get_webview((int)args[0].as.number);
     if (!webview) {
-        Value result = {VALUE_NUMBER};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NUMBER;
         result.as.number = -1;
         return result;
     }
@@ -339,14 +369,18 @@ Value kyl_webview_run(int arg_count, Value* args) {
 
 Value kyl_webview_step(int arg_count, Value* args) {
     if (arg_count < 1 || args[0].type != VALUE_NUMBER) {
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
     
     WebView* webview = get_webview((int)args[0].as.number);
     if (!webview) {
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -361,14 +395,18 @@ Value kyl_webview_step(int arg_count, Value* args) {
 
 Value kyl_webview_is_open(int arg_count, Value* args) {
     if (arg_count < 1 || args[0].type != VALUE_NUMBER) {
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
     
     WebView* webview = get_webview((int)args[0].as.number);
     if (!webview) {
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -382,13 +420,17 @@ Value kyl_webview_is_open(int arg_count, Value* args) {
 
 Value kyl_webview_eval(int arg_count, Value* args) {
     if (arg_count < 2 || args[0].type != VALUE_NUMBER || args[1].type != VALUE_STRING) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
     WebView* webview = get_webview((int)args[0].as.number);
     if (!webview) {
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -403,13 +445,17 @@ Value kyl_webview_eval(int arg_count, Value* args) {
 
 Value kyl_webview_set_title(int arg_count, Value* args) {
     if (arg_count < 2 || args[0].type != VALUE_NUMBER || args[1].type != VALUE_STRING) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
     WebView* webview = get_webview((int)args[0].as.number);
     if (!webview) {
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -425,13 +471,17 @@ Value kyl_webview_set_title(int arg_count, Value* args) {
 Value kyl_webview_set_size(int arg_count, Value* args) {
     if (arg_count < 3 || args[0].type != VALUE_NUMBER || 
         args[1].type != VALUE_NUMBER || args[2].type != VALUE_NUMBER) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
     WebView* webview = get_webview((int)args[0].as.number);
     if (!webview) {
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -446,13 +496,17 @@ Value kyl_webview_set_size(int arg_count, Value* args) {
 
 Value kyl_webview_destroy(int arg_count, Value* args) {
     if (arg_count < 1 || args[0].type != VALUE_NUMBER) {
-        Value result = {VALUE_NIL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_NIL;
         return result;
     }
     
     WebView* webview = get_webview((int)args[0].as.number);
     if (!webview) {
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -474,7 +528,9 @@ Value kyl_webview_bind(int arg_count, Value* args) {
     
     if (arg_count < 3) {
         fprintf(stderr, "[ERROR] webview_bind requires 3 args, got %d\n", arg_count);
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -483,21 +539,27 @@ Value kyl_webview_bind(int arg_count, Value* args) {
     
     if (args[0].type != VALUE_NUMBER) {
         fprintf(stderr, "[ERROR] webview_bind: arg 0 must be NUMBER (window handle), got type %d\n", args[0].type);
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
     
     if (args[1].type != VALUE_STRING) {
         fprintf(stderr, "[ERROR] webview_bind: arg 1 must be STRING (func_name), got type %d\n", args[1].type);
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
     
     if (args[2].type != VALUE_FUNCTION) {
         fprintf(stderr, "[ERROR] webview_bind: arg 2 must be FUNCTION (callback), got type %d\n", args[2].type);
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -508,7 +570,9 @@ Value kyl_webview_bind(int arg_count, Value* args) {
     WebView* webview = get_webview(handle);
     if (!webview) {
         fprintf(stderr, "[ERROR] webview_bind: Invalid window handle %d\n", handle);
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -521,7 +585,9 @@ Value kyl_webview_bind(int arg_count, Value* args) {
     // Store bound function info
     if (g_bound_count >= MAX_BOUND_FUNCTIONS) {
         fprintf(stderr, "[ERROR] webview_bind: Max bound functions reached\n");
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -532,7 +598,9 @@ Value kyl_webview_bind(int arg_count, Value* args) {
     bound->kuyil_callback = malloc(sizeof(Value));
     if (!bound->kuyil_callback) {
         fprintf(stderr, "[ERROR] webview_bind: Failed to allocate callback memory\n");
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -558,7 +626,9 @@ Value kyl_webview_bind(int arg_count, Value* args) {
 Value kyl_webview_enableDevTools(int arg_count, Value* args) {
     if (arg_count < 2 || args[0].type != VALUE_NUMBER || args[1].type != VALUE_BOOL) {
         fprintf(stderr, "[ERROR] webview_enableDevTools requires 2 args: window (number), enable (bool)\n");
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
@@ -568,7 +638,9 @@ Value kyl_webview_enableDevTools(int arg_count, Value* args) {
     
     if (!webview) {
         fprintf(stderr, "[ERROR] webview_enableDevTools: Invalid window handle %d\n", handle);
-        Value result = {VALUE_BOOL};
+        Value result;
+    memset(&result, 0, sizeof(Value));
+    result.type = VALUE_BOOL;
         result.as.boolean = false;
         return result;
     }
