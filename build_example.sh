@@ -1,7 +1,7 @@
 # Build script for WebView example application
 #!/bin/bash
 
-WEBVIEW_DIR="/home/vmukumar/e-lang/shared_libs/webview"
+WEBVIEW_DIR="./shared_libs/webview"
 BUILD_DIR="$WEBVIEW_DIR/build"
 
 echo "Building Kuyil WebView Example Application"

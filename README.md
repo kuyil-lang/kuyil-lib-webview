@@ -17,7 +17,7 @@ The WebView utilities library enables you to create modern desktop applications 
 ### 1. Build the WebView Library
 
 ```bash
-cd /home/vmukumar/e-lang/shared_libs/webview
+cd ./shared_libs/webview
 make clean && make
 ```
 

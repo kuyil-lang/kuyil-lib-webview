@@ -8,7 +8,7 @@ The WebView library **works perfectly** - the issue was with the **Kuyil FFI int
 
 1. **✅ WebView Library Built Successfully**
    ```bash
-   cd /home/vmukumar/e-lang/shared_libs/webview
+   cd ./shared_libs/webview
    make clean && make  # ✓ SUCCESSFUL
    ```
 
@@ -36,7 +36,7 @@ ERROR Function or library not found: webview.webview_init
 
 #### **Option 1: Use the C Example (RECOMMENDED)**
 ```bash
-cd /home/vmukumar/e-lang/shared_libs/webview
+cd ./shared_libs/webview
 ./build_example.sh
 cd build
 LD_LIBRARY_PATH=. ./webview_example
@@ -64,7 +64,7 @@ int main() {
 ```
 
 #### **Option 3: Future Kuyil Integration (Requires VM Updates)**
-To make WebView functions directly available in Kuyil (like `print()`, `str_length()`, etc.), the functions need to be added to the Kuyil VM source code in `/home/vmukumar/e-lang/kuyil-lang/src/vm.c`.
+To make WebView functions directly available in Kuyil (like `print()`, `str_length()`, etc.), the functions need to be added to the Kuyil VM source code in `./kuyil-lang/src/vm.c`.
 
 ### 📊 **Test Results Summary:**
 
